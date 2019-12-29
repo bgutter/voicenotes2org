@@ -29,7 +29,7 @@ C-c C-o on any link to play clip starting from that offset.
 
 """
 ENTRY_TEMPLATE = """
-* Voice Note {subtitle}
+* Voice Note: {subtitle}
 [{time_part_str}]
 [[voicenote:{link_path}:0][Archived Clip]]
 
@@ -138,7 +138,7 @@ def format_org_entry( wav_file_path, text, timestamp_map ):
     #
     # Extract date, time, and ID from wav_file_path
     #
-    match = FNAME_PARSER.match( wav_file_path )
+    match = FNAME_PARSER.match( os.path.basename( wav_file_path ) )
     if match is None:
         raise NotImplementedError( "TODO Handle malformed filenames." )
     parts = match.groupdict()

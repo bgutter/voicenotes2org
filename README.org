@@ -1,0 +1,136 @@
+#+TITLE: voicenotes2org
+
+=voicenotes2org= is a Python script which collects WAV files in a given directory, sends them to Google Cloud Platform (GCP) for transcription, and then formats the resulting transcripts into a combined org file, including links back to the original audio.
+
+Each note becomes a heading in the org file, and includes:
+1. The date and time of the note
+2. An org-link of type =voicenote=, which, when followed, plays the original audio file in EMMS
+3. Google's transcript of the note, broken down into 10-second segments. Each segment begins with a =voicenote= link which will play the original audio file /at the time offset which corresponds to that segment/.
+
+* Prerequisites
+
+This uses Google's Cloud Speech-to-Text API, and you will need your own GCP account. Make sure you have a service account JSON.
+
+Other than that, you'll need =python3= and =ffmpeg= on your system, and the Python modules =google-cloud-speech= and =pydub=.
+
+* Installation
+
+Just download the script.
+
+* Basic Usage
+
+#+BEGIN_SRC bash
+python voicenotes2org.py ~/new-voice-notes/ ~/org/archived-voice-notes/ ~/org/unfiled-voice-notes.org
+#+END_SRC
+
+The script will find every WAV file in =~/new-voice-notes/=, and transcribe them. After transcription, they will be moved to =~/org/archived-voice-notes/=. If =~/org/unfiled-voice-notes.org= already exists, the script will append a new heading for each WAV file it transcribed. It will note delete, or modify, anything else in the org-file. If the file doesn't exist, it will be created.
+
+* Example Output
+
+Formatted Output:
+
+[[./formatted-output.png]]
+Plain Text:
+
+#+BEGIN_SRC text
+  ls ~/new-voice-notes/
+  My recording 2019-12-23 6-09 AM 541.wav
+  My recording 2019-12-22 5-30 PM 539.wav
+  ls ~/org/archived-voice-notes/
+  
+  python voicenotes2org.py ~/new-voice-notes/ ~/org/archived-voice-notes/ ~/org/unfiled-voice-notes.org
+  
+  ls ~/new-voice-notes/
+  ls ~/org/archived-voice-notes/
+  My recording 2019-12-23 6-09 AM 541.wav
+  My recording 2019-12-22 5-30 PM 539.wav
+
+  cat ~/org/unfiled-voice-notes.org
+  # -*- eval: (org-link-set-parameters "voicenote" :follow (lambda (content) (cl-multiple-value-bind (file seconds) (split-string content ":") (emms-play-file file) (sit-for 0.5) (emms-seek-to seconds)))) -*-
+  #+TITLE: Unfiled Voice Notes
+  
+  C-c C-o on any link to play clip starting from that offset.
+  
+  * Voice Note: My recording, 541
+  [2019-12-23 Mon 06:09]
+  [[voicenote:/home/me/org/archived-voice-notes/My recording 2019-12-23 6-09 AM 541.wav:0][Archived Clip]]
+  
+  [[voicenote:/home/me/org/archived-voice-notes/My recording 2019-12-23 6-09 AM 541.wav:0][00:00]] just some example text not really talking I have nothing to say etcetera
+  [[voicenote:/home/me/org/archived-voice-notes/My recording 2019-12-23 6-09 AM 541.wav:10][00:10]] and more stuff and blah blah blah nothing to add really just want to fill
+  [[voicenote:/home/me/org/archived-voice-notes/My recording 2019-12-23 6-09 AM 541.wav:20][00:20]] out a little bit more
+  
+  * Voice Note: My recording, 542
+  [2019-12-24 Tue 17:30]
+  ...you get the idea...
+#+END_SRC
+
+* Example Workflow
+
+This is how I integrate my voice recordings into org-mode.
+
+*Convenient Voice Recording*
+
+I record voice notes on my Android device using "Easy Voice Recorder". I use this app specifically because it provides a system shortcut to toggle recording. The first invocation of this shortcut begins recording, and the second stops recording, saving the audio to a new WAV file. A third invocation would start recording again, but with another new file.
+
+This app also lets you specify how audio files should be named, which makes it easy to encode date and time.
+
+Most importantly, I use the "Button Mapper" app to *bind a long-press of the volume-up key to this shortcut*. This works even when the screen is off.
+
+With this setup, ideas, tasks, and notes can be recorded instantly and effortlessly. Just long hold the volume up key, say whatever needs to be said, and long hold again to complete the file. No unlocking the phone, and no interacting with the touchscreen.
+
+Alternatively, If you don't mind carrying a second device, a dedicated voice recorder would work at least as well.
+
+*Syncing The Audio Files*
+
+I use Syncthing to sync the voice notes directory on my Android device to a directory on my PC. This is probably the easiest way to achieve near realtime syncing, and Syncthing is FOSS!
+
+Alternatively, you can manually copy the files every evening over USB, or SSH, or Google Drive, or...well, you get the idea.
+
+*Transcription*
+
+In my org directory structure, I have a file dedicated to receiving transcribed, but not yet properly filed, voice notes. Let's say that this is at =~/org/unfiled-voice-notes.org=. Let's also assume that my untranscribed voice notes are synced -- by Syncthing -- to =~/new-voice-notes/=.
+
+If I run the example command under the =Basic Usage= heading, then absent any errors, =~/new-voice-notes/= will be cleared out. This frees up space on the phone, though otherwise isn't all that important. What is important is that, for each processed audio file, a new heading will appended to =~/org/unfiled-voice-notes.org=. The audio file will now live in =~/org/archived-voice-notes/=, and any file links in the org entries will point to this location. The audio file has a new forever home.
+
+Once =voicenotes2org= has returned, you should open =~/org/unfiled-voice-notes.org= in Emacs, then kill/yank each entry into a more proper location in your org directory structure. Because all links use absolute paths to the archive directory, they should not break (as long as the archive directory is not relocated, of course).
+
+Now, =~/new-voice-notes/= contains no WAV files, and =~/org/unfiled-voice-notes.org= contains no unsorted entries. Everything is in it's proper place, and Google has just saved you a lot of time typing.
+
+* 🚨 Gotchas 🚨
+
+Many corners have been cut in the making of this script. If literally anyone else ever uses this code, these issues might be worth fixing some day.
+
+** Only WAV files are supported
+
+Wouldn't be hard to figure out the file format, but Google's transcription API requires non-WAV formats specify things like sample rate and encoding. I did not need this.
+
+** WAV file naming rules
+
+WAV files *must* be named according to the following pattern:
+
+    STUFFA YYYY-MM-DD H-MM AM|PM STUFFB.wav
+
+Where:
+- =YYYY= is the year.
+- =MM= is zero-padded month.
+- =DD= is zero-padded day.
+- =H= is unpadded (sorry) hour in 12-hour format.
+- =MM= is zero-padded minute.
+- =AM|PM= is literally just "AM" or "PM".
+- =STUFF_= is contiguous non-whitespace. The A and B parts will be catenated & used in the entry heading.
+
+This is ugly and arbitrary and later versions might improve this.
+
+** Ugliness caused by avoiding Google Cloud Storage
+
+Google caps the duration of audio which has been inlined into the transcription request at 1 minute. Anything longer than that, and you need to configure a Google Cloud Storage bucket. I didn't want to, so I split each voice note into 55-second chunks with a 5-second overlap.
+
+For example, a 3 minute long voice note is actually transcribed in 4 separate chunks:
+1. 0:00 to 0:55 -- 55 seconds
+2. 0:50 to 1:45 -- 55 seconds, first 5 overlap
+3. 1:40 to 2:35 -- 55 seconds, first 5 overlap
+4. 2:30 to 3:00 -- 30 seconds, first 5 overlap
+
+To reduce (or, maybe produce) confusion, I insert the text "<...snip...>" into the transcription wherever we're about to start inserting overlapped content.
+
+This is ugly and lazy and later versions might improve this.
