@@ -10,6 +10,7 @@ from google.cloud.speech_v1 import enums
 
 import pydub
 
+import shutil
 import glob
 import argparse
 import io
@@ -158,7 +159,13 @@ def recording_date_from_full_path( wav_file_path ):
             dt_args[-2] += 12
     return datetime( *dt_args ), subtitle
 
-def format_org_entry( wav_file_path, text, timestamp_map ):
+def path_as_archived( wav_file_path, archive_dir ):
+    """
+    Return the intended path of this wav file after archiving.
+    """
+    return os.path.join( archive_dir, os.path.basename( wav_file_path ) )
+
+def format_org_entry( wav_file_path, text, timestamp_map, archive_dir ):
     """
     Return a string which represents the org-mode heading for this transcription. Includes
     links which will play the archived version of the note starting every 10 seconds.
@@ -178,7 +185,12 @@ def format_org_entry( wav_file_path, text, timestamp_map ):
         abssecond = offset_limit - TRANSCRIPTION_CHUNK_SIZE
         relsecond = abssecond % 60
         minute = int( abssecond / 60 )
-        running_body += TRANSCRIPTION_CHUNK_TEMPLATE.format( filepath=wav_file_path, abssecond=abssecond, minute="{:02d}".format( minute ), relsecond="{:02d}".format( relsecond ), text=text )
+        running_body += TRANSCRIPTION_CHUNK_TEMPLATE.format(
+            filepath=path_as_archived( wav_file_path, archive_dir ),
+            abssecond=abssecond,
+            minute="{:02d}".format( minute ),
+            relsecond="{:02d}".format( relsecond ),
+            text=text )
         words_this_chunk = [ word ]
         offset_limit = ( int( word_offset / TRANSCRIPTION_CHUNK_SIZE ) + 1 ) * TRANSCRIPTION_CHUNK_SIZE
         return running_body, words_this_chunk, offset_limit
@@ -198,7 +210,11 @@ def format_org_entry( wav_file_path, text, timestamp_map ):
     #
     # Fill in the entry template
     #
-    return ENTRY_TEMPLATE.format( subtitle=subtitle, time_part_str=time_part_str, link_path=wav_file_path, body=annotated_transcription )
+    return ENTRY_TEMPLATE.format(
+        subtitle=subtitle,
+        time_part_str=time_part_str,
+        link_path=path_as_archived( wav_file_path, archive_dir ),
+        body=annotated_transcription )
 
 def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy=False, gcp_credentials_path=None ):
     """
@@ -252,7 +268,7 @@ def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy
     org_entries = {}
     for wav_file_path in sorted( correctly_named_wavs, key=lambda x: recording_date_from_full_path( x )[0] ):
         text, timestamp_map = transcribe_wav( wav_file_path, gcp_credentials_path )
-        org_entry = format_org_entry( wav_file_path, text, timestamp_map )
+        org_entry = format_org_entry( wav_file_path, text, timestamp_map, archive_dir )
         org_entries[ wav_file_path ] = org_entry
 
     #
@@ -271,7 +287,11 @@ def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy
     for wav_file_path, org_entry in org_entries.items():
         if org_entry is not None:
             fout.write( org_entry )
-            # TODO: Move wav_file_path to archive, unless just_copy
+            dst_path = path_as_archived( wav_file_path, archive_dir )
+            if just_copy:
+                shutil.copy2( wav_file_path, dst_path )
+            else:
+                shutil.move( wav_file_path, dst_path )
         else:
             print( "Possible failure on file {}?".format( wav_file_path ) )
     fout.close()
