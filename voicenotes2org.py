@@ -130,17 +130,17 @@ def transcribe_wav( local_file_path, gcp_credentials_path=None, language_code="e
 
     return ( full_text, time_map )
 
-def format_org_entry( wav_file_path, text, timestamp_map ):
+def recording_date_from_full_path( wav_file_path ):
     """
-    Return a string which represents the org-mode heading for this transcription. Includes
-    links which will play the archived version of the note starting every 10 seconds.
+    Return a datetime and subtitle info, given a filename.
+    Throws ValueError if the WAV file doesn't match the regex.
     """
     #
     # Extract date, time, and ID from wav_file_path
     #
     match = FNAME_PARSER.match( os.path.basename( wav_file_path ) )
     if match is None:
-        raise NotImplementedError( "TODO Handle malformed filenames." )
+        raise ValueError( "Name does not match pattern!" )
     parts = match.groupdict()
 
     # Subtitle is just extra cruft from the file name.
@@ -156,7 +156,14 @@ def format_org_entry( wav_file_path, text, timestamp_map ):
         # PM: 12->12, 1->13, 2->14, ... 11->23
         if dt_args[-2] < 12:
             dt_args[-2] += 12
-    dt = datetime( *dt_args )
+    return datetime( *dt_args ), subtitle
+
+def format_org_entry( wav_file_path, text, timestamp_map ):
+    """
+    Return a string which represents the org-mode heading for this transcription. Includes
+    links which will play the archived version of the note starting every 10 seconds.
+    """
+    dt, subtitle = recording_date_from_full_path( wav_file_path )
     time_part_str = dt.strftime( "%Y-%m-%d %a %H:%M" )
 
     #
@@ -226,11 +233,24 @@ def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy
     """
 
     #
-    # Collect all transcriptions
-    # TODO: Threaded, parallel requests
+    # Filter out anything that doesn't match the filename regex
+    # TODO: We call recording_date_from_full_path() like 3 times for each record (maybe more).
+    # Might as well just cache it somewhere.
+    #
+    all_wavs = glob.glob( os.path.join( voice_notes_dir, "*.wav" ) )
+    correctly_named_wavs = []
+    for wav in all_wavs:
+        try:
+            _, _ = recording_date_from_full_path( wav )
+            correctly_named_wavs.append( wav )
+        except ValueError:
+            pass
+
+    #
+    # Process chronologically
     #
     org_entries = {}
-    for wav_file_path in glob.glob( os.path.join( voice_notes_dir, "*.wav" ) ):
+    for wav_file_path in sorted( correctly_named_wavs, key=lambda x: recording_date_from_full_path( x )[0] ):
         text, timestamp_map = transcribe_wav( wav_file_path, gcp_credentials_path )
         org_entry = format_org_entry( wav_file_path, text, timestamp_map )
         org_entries[ wav_file_path ] = org_entry

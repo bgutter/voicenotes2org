@@ -30,6 +30,7 @@ The script will find every WAV file in =~/new-voice-notes/=, and transcribe them
 Formatted Output:
 
 [[./formatted-output.png]]
+
 Plain Text:
 
 #+BEGIN_SRC text
