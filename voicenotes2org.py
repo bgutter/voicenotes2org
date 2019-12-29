@@ -216,7 +216,7 @@ def format_org_entry( wav_file_path, text, timestamp_map, archive_dir ):
         link_path=path_as_archived( wav_file_path, archive_dir ),
         body=annotated_transcription )
 
-def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy=False, gcp_credentials_path=None ):
+def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy=False, gcp_credentials_path=None, verbose=False ):
     """
     Root transcription function. Performs the following steps:
     1. Find all WAV files in voice_notes_dir.
@@ -267,6 +267,8 @@ def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy
     #
     org_entries = {}
     for wav_file_path in sorted( correctly_named_wavs, key=lambda x: recording_date_from_full_path( x )[0] ):
+        if verbose:
+            print( "Transcribing {}...".format( wav_file_path ) )
         text, timestamp_map = transcribe_wav( wav_file_path, gcp_credentials_path )
         org_entry = format_org_entry( wav_file_path, text, timestamp_map, archive_dir )
         org_entries[ wav_file_path ] = org_entry
@@ -306,6 +308,7 @@ if __name__ == "__main__":
     parser.add_argument( "org_transcript_file", type=str, help="Org file where transcription headings will be appended. Will be created if it doesn't exist." )
     parser.add_argument( "--just_copy", type=bool, help="If True, don't remove files from voice_notes_dir. Default is False." )
     parser.add_argument( "--gcp_credentials_path", type=str, help="Path to GCP credentials JSON, if environment variables are unconfigured." )
+    parser.add_argument( "--verbose", type=bool, help="Prints out which WAV we're working on." )
     kwargs = { k: v for k, v in vars( parser.parse_args() ).items() if v is not None }
 
     #
