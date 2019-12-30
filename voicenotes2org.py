@@ -38,7 +38,7 @@ ENTRY_TEMPLATE = """
 {body}
 """
 TRANSCRIPTION_CHUNK_TEMPLATE = "[[voicenote:{filepath}:{abssecond}][{minute}:{relsecond}]] {text}\n"
-FNAME_PARSER = re.compile( r"(?P<stuffbefore>.*)\s(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+).*(?P<hour>\d+)-(?P<minute>\d+)\s(?P<ampm>\S*)\s(?P<stuffafter>.*).wav" )
+FNAME_PARSER = re.compile( r"(?P<stuffbefore>.*)\s+(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+)\s+(?P<hour>\d+)-(?P<minute>\d+)\s+(?P<ampm>\S*)\s+(?P<stuffafter>.*).wav" )
 
 def transcribe_wav( local_file_path, gcp_credentials_path=None, language_code="en-US" ):
     """
