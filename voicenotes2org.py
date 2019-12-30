@@ -16,7 +16,7 @@ import argparse
 import io
 import os
 import re
-from multiprocessing.pool import ThreadPool
+import multiprocessing as mp
 from datetime import datetime
 
 #
@@ -40,7 +40,22 @@ ENTRY_TEMPLATE = """
 TRANSCRIPTION_CHUNK_TEMPLATE = "[[voicenote:{filepath}:{abssecond}][{minute}:{relsecond}]] {text}\n"
 FNAME_PARSER = re.compile( r"(?P<stuffbefore>.*)\s+(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+)\s+(?P<hour>\d+)-(?P<minute>\d+)\s+(?P<ampm>\S*)\s+(?P<stuffafter>.*).wav" )
 
-def transcribe_wav( local_file_path, gcp_credentials_path=None, language_code="en-US" ):
+def create_api_client( gcp_credentials_path=None ):
+    """
+    Open a connection
+    """
+    if "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
+        # Need explicit credentials -- complain if they aren't defined.
+        if gcp_credentials_path is None:
+            raise ValueError( "You gotta provide a GCP credentials JSON if it's not set as an environment variable. See https://cloud.google.com/docs/authentication/production." )
+        client = speech_v1.SpeechClient.from_service_account_json( gcp_credentials_path )
+
+    else:
+        # It should figure things out automatically.
+        client = speech_v1.SpeechClient()
+    return client
+
+def transcribe_wav( local_file_path, gcp_credentials_path=None, language_code="en-US", client=None ):
     """
     Pass in path to local WAV file, get a time-indexed transcription.
 
@@ -62,19 +77,8 @@ def transcribe_wav( local_file_path, gcp_credentials_path=None, language_code="e
     #
     # Instantiate a client
     #
-    if "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
-        #
-        # Need explicit credentials -- complain if they aren't defined.
-        #
-        if gcp_credentials_path is None:
-            raise ValueError( "You gotta provide a GCP credentials JSON if it's not set as an environment variable. See https://cloud.google.com/docs/authentication/production." )
-        client = speech_v1.SpeechClient.from_service_account_json( gcp_credentials_path )
-
-    else:
-        #
-        # It should figure things out automatically.
-        #
-        client = speech_v1.SpeechClient()
+    if client is None:
+        client = create_api_client( gcp_credentials_path )
 
     #
     # Build the request. Because we only support WAV, don't need to define encoding
@@ -264,33 +268,12 @@ def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy
             pass
 
     #
-    # Process chronologically
-    #
-    #org_entries = {}
-    #for wav_file_path in sorted( correctly_named_wavs, key=lambda x: recording_date_from_full_path( x )[0] ):
-    #    if verbose:
-    #        print( "Transcribing {}...".format( wav_file_path ) )
-    #    text, timestamp_map = transcribe_wav( wav_file_path, gcp_credentials_path )
-    #    org_entry = format_org_entry( wav_file_path, text, timestamp_map, archive_dir )
-    #    org_entries[ wav_file_path ] = org_entry
-
-    #
     # Get all of the Google transcription results
     #
-    def date_keyed_transcribe_wav( fname, creds ):
-        if verbose:
-            # TODO: We should (probably?) queue these messages and print() on a single thread/process...but....
-            print( "Transcribing {}...".format( fname ) )
-        try:
-            ret = ( recording_date_from_full_path( fname ), fname, transcribe_wav( fname, creds ) )
-        except BaseException:
-            # Do NOT kill the program. We'll leave the audio file in the unprocessed directory.
-            ret = None
-        return ret
-    pool = ThreadPool( max_concurrent_requests )
+    pool = mp.Pool( max_concurrent_requests, initializer=worker_init_func, initargs=(subprocess_transcribe_function, gcp_credentials_path, verbose) )
     results = []
     for wav_file_path in correctly_named_wavs:
-        results.append( pool.apply_async( date_keyed_transcribe_wav, args=( wav_file_path, gcp_credentials_path ) ) )
+        results.append( pool.apply_async( subprocess_transcribe_function, args=( wav_file_path, ) ) )
     pool.close()
     pool.join()
     results = [ r.get() for r in results ]
@@ -328,6 +311,34 @@ def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy
         else:
             print( "Possible failure on file {}?".format( wav_file_path ) )
     fout.close()
+
+def subprocess_transcribe_function( fname ):
+    """
+    This is performed in another process.
+    """
+    if subprocess_transcribe_function.verbose:
+        # TODO: We should (probably?) queue these messages and print() on a single thread/process...but....
+        print( "Transcribing {}...".format( fname ) )
+    try:
+        ret = ( recording_date_from_full_path( fname ), fname, transcribe_wav( fname, client=subprocess_transcribe_function.client ) )
+    except BaseException as e:
+        # Do NOT kill the program. We'll leave the audio file in the unprocessed directory.
+        print( "ERROR:" )
+        print( e )
+        ret = None
+    return ret
+
+def worker_init_func( the_mapped_function, credentials_path, verbose ):
+    """
+    Create a client and attach it to the function.
+    This is called once per worker.
+    It works because each worker is an independent process, and has its own copy
+    of the subprocess_transcribe_function() function.
+    """
+    if verbose:
+        print( "Creating a new client..." )
+    the_mapped_function.client = create_api_client( credentials_path )
+    the_mapped_function.verbose = verbose
 
 if __name__ == "__main__":
     #
