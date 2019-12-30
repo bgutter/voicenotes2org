@@ -16,6 +16,7 @@ import argparse
 import io
 import os
 import re
+from multiprocessing.pool import ThreadPool
 from datetime import datetime
 
 #
@@ -216,7 +217,7 @@ def format_org_entry( wav_file_path, text, timestamp_map, archive_dir ):
         link_path=path_as_archived( wav_file_path, archive_dir ),
         body=annotated_transcription )
 
-def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy=False, gcp_credentials_path=None, verbose=False ):
+def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy=False, gcp_credentials_path=None, verbose=False, max_concurrent_requests=5 ):
     """
     Root transcription function. Performs the following steps:
     1. Find all WAV files in voice_notes_dir.
@@ -265,13 +266,43 @@ def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy
     #
     # Process chronologically
     #
-    org_entries = {}
-    for wav_file_path in sorted( correctly_named_wavs, key=lambda x: recording_date_from_full_path( x )[0] ):
+    #org_entries = {}
+    #for wav_file_path in sorted( correctly_named_wavs, key=lambda x: recording_date_from_full_path( x )[0] ):
+    #    if verbose:
+    #        print( "Transcribing {}...".format( wav_file_path ) )
+    #    text, timestamp_map = transcribe_wav( wav_file_path, gcp_credentials_path )
+    #    org_entry = format_org_entry( wav_file_path, text, timestamp_map, archive_dir )
+    #    org_entries[ wav_file_path ] = org_entry
+
+    #
+    # Get all of the Google transcription results
+    #
+    def date_keyed_transcribe_wav( fname, creds ):
         if verbose:
-            print( "Transcribing {}...".format( wav_file_path ) )
-        text, timestamp_map = transcribe_wav( wav_file_path, gcp_credentials_path )
-        org_entry = format_org_entry( wav_file_path, text, timestamp_map, archive_dir )
-        org_entries[ wav_file_path ] = org_entry
+            # TODO: We should (probably?) queue these messages and print() on a single thread/process...but....
+            print( "Transcribing {}...".format( fname ) )
+        try:
+            ret = ( recording_date_from_full_path( fname ), fname, transcribe_wav( fname, creds ) )
+        except BaseException:
+            # Do NOT kill the program. We'll leave the audio file in the unprocessed directory.
+            ret = None
+        return ret
+    pool = ThreadPool( max_concurrent_requests )
+    results = []
+    for wav_file_path in correctly_named_wavs:
+        results.append( pool.apply_async( date_keyed_transcribe_wav, args=( wav_file_path, gcp_credentials_path ) ) )
+    pool.close()
+    pool.join()
+    results = [ r.get() for r in results ]
+    results = [ r for r in results if r is not None ]
+
+    #
+    # Get formatted org entries for all successful transcriptions
+    #
+    org_entries = []
+    for ( date, wav_file_path, ( text, timestamp_map ) ) in results:
+        org_entries.append( ( date, wav_file_path, format_org_entry( wav_file_path, text, timestamp_map, archive_dir ) ) )
+    org_entries = sorted( org_entries, key=lambda x: x[0] )
 
     #
     # Open file to append headings -- create if needed.
@@ -286,7 +317,7 @@ def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy
     # Write each heading, move WAV files to archive if it looks
     # like the transcription worked.
     #
-    for wav_file_path, org_entry in org_entries.items():
+    for _, wav_file_path, org_entry in org_entries:
         if org_entry is not None:
             fout.write( org_entry )
             dst_path = path_as_archived( wav_file_path, archive_dir )
@@ -309,6 +340,7 @@ if __name__ == "__main__":
     parser.add_argument( "--just_copy", type=bool, help="If True, don't remove files from voice_notes_dir. Default is False." )
     parser.add_argument( "--gcp_credentials_path", type=str, help="Path to GCP credentials JSON, if environment variables are unconfigured." )
     parser.add_argument( "--verbose", type=bool, help="Prints out which WAV we're working on." )
+    parser.add_argument( "--max_concurrent_requests", type=int, help="Maximum number of concurrent transcription requests." )
     kwargs = { k: v for k, v in vars( parser.parse_args() ).items() if v is not None }
 
     #

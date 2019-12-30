@@ -26,11 +26,12 @@ python voicenotes2org.py ~/new-voice-notes/ ~/org/archived-voice-notes/ ~/org/un
 The script will find every WAV file in =~/new-voice-notes/=, and transcribe them. After transcription, they will be moved to =~/org/archived-voice-notes/=. If =~/org/unfiled-voice-notes.org= already exists, the script will append a new heading for each WAV file it transcribed. It will note delete, or modify, anything else in the org-file. If the file doesn't exist, it will be created.
 
 *Optional Arguments*
-| Option                  | Meaning                                                                                                                                                                         |
-|-------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| =--just_copy=           | Boolean. Default false. If true, don't remove audio from original folder.                                                                                                       |
-| =--gcp_credential_path= | Path to JSON file. If provided, use this to access the Google Speech-to-Text API. If missing, you must have configured the GOOGLE_APPLICATION_CREDENTIALS environment variable! |
-| =--verbose=             | Default false. Print the name of WAV files currently being transcribed.                                                                                                  |
+| Option                      | Meaning                                                                                                                                                                         |
+|-----------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| =--just_copy=               | Boolean. Default false. If true, don't remove audio from original folder.                                                                                                       |
+| =--gcp_credential_path=     | Path to JSON file. If provided, use this to access the Google Speech-to-Text API. If missing, you must have configured the GOOGLE_APPLICATION_CREDENTIALS environment variable! |
+| =--verbose=                 | Default false. Print the name of WAV files currently being transcribed.                                                                                                         |
+| =--max_concurrent_requests= | Maximum number of concurrent transcription requests.                                                                                                                            |
 
 * Example Output
 
