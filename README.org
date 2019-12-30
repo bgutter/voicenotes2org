@@ -23,7 +23,7 @@ Just download the script.
 python voicenotes2org.py ~/new-voice-notes/ ~/org/archived-voice-notes/ ~/org/unfiled-voice-notes.org
 #+END_SRC
 
-The script will find every WAV file in =~/new-voice-notes/=, and transcribe them. After transcription, they will be moved to =~/org/archived-voice-notes/=. If =~/org/unfiled-voice-notes.org= already exists, the script will append a new heading for each WAV file it transcribed. It will note delete, or modify, anything else in the org-file. If the file doesn't exist, it will be created.
+The script will find every WAV file in =~/new-voice-notes/=, and transcribe them. After transcription, they will be moved to =~/org/archived-voice-notes/=. If =~/org/unfiled-voice-notes.org= already exists, the script will append a new heading for each WAV file it transcribed. It will not delete, or modify, anything else in the org-file. If the file doesn't exist, it will be created.
 
 *Optional Arguments*
 | Option                      | Meaning                                                                                                                                                                         |
@@ -99,11 +99,11 @@ Alternatively, you can manually copy the files every evening over USB, or SSH, o
 
 In my org directory structure, I have a file dedicated to receiving transcribed, but not yet properly filed, voice notes. Let's say that this is at =~/org/unfiled-voice-notes.org=. Let's also assume that my untranscribed voice notes are synced -- by Syncthing -- to =~/new-voice-notes/=.
 
-If I run the example command under the =Basic Usage= heading, then absent any errors, =~/new-voice-notes/= will be cleared out. This frees up space on the phone, though otherwise isn't all that important. What is important is that, for each processed audio file, a new heading will appended to =~/org/unfiled-voice-notes.org=. The audio file will now live in =~/org/archived-voice-notes/=, and any file links in the org entries will point to this location. The audio file has a new forever home.
+If I run the example command under the =Basic Usage= heading, then absent any errors, =~/new-voice-notes/= will be cleared out. This frees up space on the phone, though otherwise isn't all that important. What is important is that, for each processed audio file, a new heading will appended to =~/org/unfiled-voice-notes.org=. The audio file will now live in =~/org/archived-voice-notes/=, and any file links in the org entries will point to this location. Because the links are absolute, the headings can be moved around wherever you'd like and will not break.
 
-Once =voicenotes2org= has returned, you should open =~/org/unfiled-voice-notes.org= in Emacs, then kill/yank each entry into a more proper location in your org directory structure. Because all links use absolute paths to the archive directory, they should not break (as long as the archive directory is not relocated, of course).
+*Filing*
 
-Now, =~/new-voice-notes/= contains no WAV files, and =~/org/unfiled-voice-notes.org= contains no unsorted entries. Everything is in it's proper place, and Google has just saved you a lot of time typing.
+Once =voicenotes2org= has returned, you should open =~/org/unfiled-voice-notes.org= in Emacs, then use =org-refile= to pop each entry into a more proper location in your org directory structure. Make sure you've configured =org-refile-targets= first!
 
 * 🚨 Gotchas 🚨
 
