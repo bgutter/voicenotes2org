@@ -9,18 +9,22 @@ Each note becomes a heading in the org file, and includes:
 
 * Prerequisites
 
-This uses Google's Cloud Speech-to-Text API, and you will need your own GCP account. Make sure you have a service account JSON.
+This uses Google's Cloud Speech-to-Text API, and *you will need your own GCP account*. Make sure you have a service account JSON.
 
-Other than that, you'll need =python3= and =ffmpeg= on your system, and the Python modules =google-cloud-speech= and =pydub=.
+Other than that, you'll need =python3= and =ffmpeg= on your system.
 
 * Installation
 
-Just download the script.
+It's on PyPI.
+
+#+BEGIN_SRC sh
+sudo pip install voicenotes2org
+#+END_SRC
 
 * Basic Usage
 
 #+BEGIN_SRC bash
-python voicenotes2org.py ~/new-voice-notes/ ~/org/archived-voice-notes/ ~/org/unfiled-voice-notes.org
+voicenotes2org ~/new-voice-notes/ ~/org/archived-voice-notes/ ~/org/unfiled-voice-notes.org
 #+END_SRC
 
 The script will find every WAV file in =~/new-voice-notes/=, and transcribe them. After transcription, they will be moved to =~/org/archived-voice-notes/=. If =~/org/unfiled-voice-notes.org= already exists, the script will append a new heading for each WAV file it transcribed. It will not delete, or modify, anything else in the org-file. If the file doesn't exist, it will be created.
