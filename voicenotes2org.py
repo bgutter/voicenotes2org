@@ -268,16 +268,24 @@ def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy
             pass
 
     #
+    # Don't create more threads than there are files to transcribe.
+    #
+    max_concurrent_requests = min( max_concurrent_requests, len( correctly_named_wavs ) )
+
+    #
     # Get all of the Google transcription results
     #
-    pool = mp.Pool( max_concurrent_requests, initializer=worker_init_func, initargs=(subprocess_transcribe_function, gcp_credentials_path, verbose) )
-    results = []
-    for wav_file_path in correctly_named_wavs:
-        results.append( pool.apply_async( subprocess_transcribe_function, args=( wav_file_path, ) ) )
-    pool.close()
-    pool.join()
-    results = [ r.get() for r in results ]
-    results = [ r for r in results if r is not None ]
+    if len( correctly_named_wavs ) > 0:
+        pool = mp.Pool( max_concurrent_requests, initializer=worker_init_func, initargs=(subprocess_transcribe_function, gcp_credentials_path, verbose) )
+        results = []
+        for wav_file_path in correctly_named_wavs:
+            results.append( pool.apply_async( subprocess_transcribe_function, args=( wav_file_path, ) ) )
+        pool.close()
+        pool.join()
+        results = [ r.get() for r in results ]
+        results = [ r for r in results if r is not None ]
+    else:
+        results = []
 
     #
     # Get formatted org entries for all successful transcriptions
@@ -311,6 +319,12 @@ def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy
         else:
             print( "Possible failure on file {}?".format( wav_file_path ) )
     fout.close()
+
+    #
+    # Done!
+    #
+    if verbose:
+        print( "Done!" )
 
 def subprocess_transcribe_function( fname ):
     """
