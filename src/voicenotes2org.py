@@ -2,7 +2,6 @@
 voicenotes2org.py
 
 Batch convert a collection of voice notes (WAV files) to an org-mode file.
-
 """
 
 from google.cloud import speech_v1
@@ -10,9 +9,9 @@ from google.cloud.speech_v1 import enums
 
 import pydub
 
+import argparse
 import shutil
 import glob
-import argparse
 import io
 import os
 import re
@@ -354,7 +353,10 @@ def worker_init_func( the_mapped_function, credentials_path, verbose ):
     the_mapped_function.client = create_api_client( credentials_path )
     the_mapped_function.verbose = verbose
 
-if __name__ == "__main__":
+def main():
+    """
+    CLI for this package. Just wraps org_transcribe().
+    """
     #
     # Parse CLI
     #
@@ -372,3 +374,6 @@ if __name__ == "__main__":
     # Go!
     #
     org_transcribe( **kwargs )
+
+if __name__ == "__main__":
+    main()
