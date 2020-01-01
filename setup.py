@@ -14,7 +14,7 @@ setup(
     package_dir={'': 'src'},
     py_modules=["voicenotes2org"],
     python_requires='>=3.5',
-    install_requires=['pydub','google-cloud-speech'],
+    install_requires=['pydub','google-cloud-speech','appdirs','toml','pprint'],
     entry_points={
         'console_scripts': [
             'voicenotes2org = voicenotes2org:main',

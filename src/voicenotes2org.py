@@ -7,7 +7,10 @@ Batch convert a collection of voice notes (WAV files) to an org-mode file.
 from google.cloud import speech_v1
 from google.cloud.speech_v1 import enums
 
+import pprint
 import pydub
+import appdirs
+import toml
 
 import argparse
 import shutil
@@ -361,14 +364,56 @@ def main():
     # Parse CLI
     #
     parser = argparse.ArgumentParser( description="Transcribe a directory of wav files into a single Emacs org-mode file." )
-    parser.add_argument( "voice_notes_dir", type=str, help="Directory of WAV files which will be searched non-recursively." )
-    parser.add_argument( "archive_dir", type=str, help="Directory where WAV files will be placed after transcription." )
-    parser.add_argument( "org_transcript_file", type=str, help="Org file where transcription headings will be appended. Will be created if it doesn't exist." )
+    parser.add_argument( "--voice_notes_dir", type=str, help="Directory of WAV files which will be searched non-recursively." )
+    parser.add_argument( "--archive_dir", type=str, help="Directory where WAV files will be placed after transcription." )
+    parser.add_argument( "--org_transcript_file", type=str, help="Org file where transcription headings will be appended. Will be created if it doesn't exist." )
     parser.add_argument( "--just_copy", type=bool, help="If True, don't remove files from voice_notes_dir. Default is False." )
     parser.add_argument( "--gcp_credentials_path", type=str, help="Path to GCP credentials JSON, if environment variables are unconfigured." )
     parser.add_argument( "--verbose", type=bool, help="Prints out which WAV we're working on." )
     parser.add_argument( "--max_concurrent_requests", type=int, help="Maximum number of concurrent transcription requests." )
-    kwargs = { k: v for k, v in vars( parser.parse_args() ).items() if v is not None }
+    cli_kwargs = { k: v for k, v in vars( parser.parse_args() ).items() if v is not None }
+
+    #
+    # If a config file exists, find anything missing there
+    #
+    config_file_path = os.path.join( appdirs.user_config_dir( "voicenotes2org", "voicenotes2org" ), "default.toml" )
+    kwargs = {}
+    if os.path.exists( config_file_path ):
+        with open( config_file_path, "r" ) as fin:
+            try:
+                kwargs = toml.load( fin )
+            except toml.decoder.TomlDecodeError as e:
+                print( "\nInvalid config file at {}!".format( config_file_path )  )
+                print( str( e ) )
+                print( )
+                exit( -1 )
+
+    #
+    # Determine final kwargs -- CLI always overwrites config file
+    #
+    kwargs.update( cli_kwargs )
+
+    #
+    # Check args and expand paths
+    # (the ~/ symbol won't work from a TOML file otherwise)
+    #
+    path_args = [ "voice_notes_dir", "archive_dir", "org_transcript_file" ]
+    for p in path_args:
+        if p not in kwargs:
+            print( "Missing required argument \"{}\".".format( p ) )
+            exit( -1 )
+        else:
+            kwargs[ p ] = os.path.abspath( os.path.expanduser( os.path.expandvars( kwargs[ p ] ) ) )
+
+
+    #
+    # Explain ourselves
+    #
+    if "verbose" in kwargs and kwargs[ "verbose" ]:
+        print()
+        print( "Config Options:" )
+        pprint.pprint( kwargs )
+        print()
 
     #
     # Go!
