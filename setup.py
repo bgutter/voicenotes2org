@@ -6,7 +6,7 @@ from setuptools import setup
 
 setup(
     name='voicenotes2org',
-    version='1.0.0',
+    version='1.0.1',
     description='Transcribe voice recordings using the Google Cloud Speech-To-Text API, and export the results to Emacs org-mode headings.',
     long_description="See https://github.com/bgutter/voicenotes2org for all details!",
     url='https://github.com/bgutter/voicenotes2org',

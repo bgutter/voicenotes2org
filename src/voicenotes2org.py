@@ -33,14 +33,14 @@ C-c C-o on any link to play clip starting from that offset.
 
 """
 ENTRY_TEMPLATE = """
-* Voice Note: {subtitle}
+* New Voice Note
 [{time_part_str}]
 [[voicenote:{link_path}:0][Archived Clip]]
 
 {body}
 """
 TRANSCRIPTION_CHUNK_TEMPLATE = "[[voicenote:{filepath}:{abssecond}][{minute}:{relsecond}]] {text}\n"
-FNAME_PARSER = re.compile( r"(?P<stuffbefore>.*)\s+(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+)\s+(?P<hour>\d+)-(?P<minute>\d+)\s+(?P<ampm>\S*)\s+(?P<stuffafter>.*).wav" )
+DEFAULT_FNAME_PARSER = re.compile( r"[^0-9]*(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+)\s+(?P<hour>\d+)-(?P<minute>\d+)\s+(?P<ampm>\S*).*\.wav" )
 
 def create_api_client( gcp_credentials_path=None ):
     """
@@ -138,21 +138,18 @@ def transcribe_wav( local_file_path, gcp_credentials_path=None, language_code="e
 
     return ( full_text, time_map )
 
-def recording_date_from_full_path( wav_file_path ):
+def recording_date_from_full_path( wav_file_path, regex ):
     """
-    Return a datetime and subtitle info, given a filename.
+    Return a datetime given a filename.
     Throws ValueError if the WAV file doesn't match the regex.
     """
     #
     # Extract date, time, and ID from wav_file_path
     #
-    match = FNAME_PARSER.match( os.path.basename( wav_file_path ) )
+    match = regex.match( os.path.basename( wav_file_path ) )
     if match is None:
         raise ValueError( "Name does not match pattern!" )
     parts = match.groupdict()
-
-    # Subtitle is just extra cruft from the file name.
-    subtitle = parts["stuffbefore"] + ", " + parts["stuffafter"]
 
     # Convert hours from AMPM to 24 hour, then create a datetime object
     dt_args = [ int( parts[p] ) for p in [ "year", "month", "day", "hour", "minute" ] ]
@@ -164,7 +161,7 @@ def recording_date_from_full_path( wav_file_path ):
         # PM: 12->12, 1->13, 2->14, ... 11->23
         if dt_args[-2] < 12:
             dt_args[-2] += 12
-    return datetime( *dt_args ), subtitle
+    return datetime( *dt_args )
 
 def path_as_archived( wav_file_path, archive_dir ):
     """
@@ -172,12 +169,12 @@ def path_as_archived( wav_file_path, archive_dir ):
     """
     return os.path.join( archive_dir, os.path.basename( wav_file_path ) )
 
-def format_org_entry( wav_file_path, text, timestamp_map, archive_dir ):
+def format_org_entry( wav_file_path, text, timestamp_map, archive_dir, voicenote_filename_regex ):
     """
     Return a string which represents the org-mode heading for this transcription. Includes
     links which will play the archived version of the note starting every 10 seconds.
     """
-    dt, subtitle = recording_date_from_full_path( wav_file_path )
+    dt = recording_date_from_full_path( wav_file_path, voicenote_filename_regex )
     time_part_str = dt.strftime( "%Y-%m-%d %a %H:%M" )
 
     #
@@ -218,41 +215,13 @@ def format_org_entry( wav_file_path, text, timestamp_map, archive_dir ):
     # Fill in the entry template
     #
     return ENTRY_TEMPLATE.format(
-        subtitle=subtitle,
         time_part_str=time_part_str,
         link_path=path_as_archived( wav_file_path, archive_dir ),
         body=annotated_transcription )
 
-def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy=False, gcp_credentials_path=None, verbose=False, max_concurrent_requests=5 ):
+def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy=False, gcp_credentials_path=None, verbose=False, max_concurrent_requests=5, voicenote_filename_regex=DEFAULT_FNAME_PARSER ):
     """
     Root transcription function. Performs the following steps:
-    1. Find all WAV files in voice_notes_dir.
-    2. For each WAV file...
-        3. Transcribes it using GCP.
-        4. Moves (or optionally copies) it from voice_notes_dir to archive_dir.
-        5. Appends a heading to org_transcript_file, which includes things like the date,
-           transcription, and a link to the archived audio file.
-
-    At this point, you can manually refile headings in org_transcript_file using org-refile
-    in emacs. The links will not break, as long as you don't move anything out of
-    archive_dir.
-
-    There's a magic filename pattern required for notes to be recognized properly. It
-    was chosen arbitrarily. If you'd like to change it, pull requests are welcomed. It
-    just happens to be what the Android app I'm using generates.
-
-        .*YYYY-MM-DD H-MM AM|PM COUNT.wav
-
-    Where:
-        YYYY  is the year.
-        MM    is zero-padded month.
-        DD    is zero-padded day.
-        H     is unpadded (sorry) hour in 12-hour format.
-        MM    is zero-padded minute.
-        AM|PM is literally just "AM" or "PM".
-        COUNT is a semi-unique identifier.
-
-    I tried to be lenient with the regex, so padding may not be worth worrying about.
     """
 
     #
@@ -264,7 +233,7 @@ def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy
     correctly_named_wavs = []
     for wav in all_wavs:
         try:
-            _, _ = recording_date_from_full_path( wav )
+            recording_date_from_full_path( wav, voicenote_filename_regex ) # Just testing for exception
             correctly_named_wavs.append( wav )
         except ValueError:
             pass
@@ -281,7 +250,7 @@ def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy
         pool = mp.Pool( max_concurrent_requests, initializer=worker_init_func, initargs=(subprocess_transcribe_function, gcp_credentials_path, verbose) )
         results = []
         for wav_file_path in correctly_named_wavs:
-            results.append( pool.apply_async( subprocess_transcribe_function, args=( wav_file_path, ) ) )
+            results.append( pool.apply_async( subprocess_transcribe_function, args=( wav_file_path, voicenote_filename_regex ) ) )
         pool.close()
         pool.join()
         results = [ r.get() for r in results ]
@@ -294,7 +263,7 @@ def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy
     #
     org_entries = []
     for ( date, wav_file_path, ( text, timestamp_map ) ) in results:
-        org_entries.append( ( date, wav_file_path, format_org_entry( wav_file_path, text, timestamp_map, archive_dir ) ) )
+        org_entries.append( ( date, wav_file_path, format_org_entry( wav_file_path, text, timestamp_map, archive_dir, voicenote_filename_regex ) ) )
     org_entries = sorted( org_entries, key=lambda x: x[0] )
 
     #
@@ -328,15 +297,18 @@ def org_transcribe( voice_notes_dir, archive_dir, org_transcript_file, just_copy
     if verbose:
         print( "Done!" )
 
-def subprocess_transcribe_function( fname ):
+def subprocess_transcribe_function( fname, voicenote_filename_regex ):
     """
     This is performed in another process.
     """
+    if not hasattr( subprocess_transcribe_function, "client" ):
+        # Init function failed.
+        return None
     if subprocess_transcribe_function.verbose:
         # TODO: We should (probably?) queue these messages and print() on a single thread/process...but....
         print( "Transcribing {}...".format( fname ) )
     try:
-        ret = ( recording_date_from_full_path( fname ), fname, transcribe_wav( fname, client=subprocess_transcribe_function.client ) )
+        ret = ( recording_date_from_full_path( fname, voicenote_filename_regex ), fname, transcribe_wav( fname, client=subprocess_transcribe_function.client ) )
     except BaseException as e:
         # Do NOT kill the program. We'll leave the audio file in the unprocessed directory.
         print( "ERROR:" )
@@ -353,8 +325,13 @@ def worker_init_func( the_mapped_function, credentials_path, verbose ):
     """
     if verbose:
         print( "Creating a new client..." )
-    the_mapped_function.client = create_api_client( credentials_path )
-    the_mapped_function.verbose = verbose
+    try:
+        the_mapped_function.client = create_api_client( credentials_path )
+        the_mapped_function.verbose = verbose
+    except BaseException as e:
+        # Probably failed to create a client. We want to exit, but can't from a subprocess.
+        # subprocess_transcribe_function will return None
+        print( e )
 
 def main():
     """
@@ -371,6 +348,9 @@ def main():
     parser.add_argument( "--gcp_credentials_path", type=str, help="Path to GCP credentials JSON, if environment variables are unconfigured." )
     parser.add_argument( "--verbose", type=bool, help="Prints out which WAV we're working on." )
     parser.add_argument( "--max_concurrent_requests", type=int, help="Maximum number of concurrent transcription requests." )
+    parser.add_argument( "--voicenote_filename_regex_path", type=str, help="Path to a text file containing a Python regex, which will be used to match "
+                         "and parse voice note filenames. It MUST contain named groups for year, month, day, hour, minute, and ampm. All but ampm "
+                         "are local date/time (or, whatever you want, really), 12 hour clock. ampm should be either literally am or pm.")
     cli_kwargs = { k: v for k, v in vars( parser.parse_args() ).items() if v is not None }
 
     #
@@ -381,7 +361,19 @@ def main():
     if os.path.exists( config_file_path ):
         with open( config_file_path, "r" ) as fin:
             try:
+
+                # Read the kwargs from the TOML
                 kwargs = toml.load( fin )
+
+                # Check args and expand paths (Like ~ and $VAR
+                # also convert any relative paths to be relative /to the config file/, not CWD
+                path_args = [ "voice_notes_dir", "archive_dir", "org_transcript_file", "voicenote_filename_regex_path" ]
+                for p in path_args:
+                    if p in kwargs:
+                        kwargs[ p ] = os.path.expanduser( os.path.expandvars( kwargs[ p ] ) )
+                        if not os.path.isabs( kwargs[ p ] ):
+                            kwargs[ p ] = os.path.join( os.path.dirname( config_file_path ), kwargs[ p ] )
+
             except toml.decoder.TomlDecodeError as e:
                 print( "\nInvalid config file at {}!".format( config_file_path )  )
                 print( str( e ) )
@@ -394,17 +386,19 @@ def main():
     kwargs.update( cli_kwargs )
 
     #
-    # Check args and expand paths
-    # (the ~/ symbol won't work from a TOML file otherwise)
+    # If user supplied a voicenote_filename_regex_path, replace it with a compiled regex.
     #
-    path_args = [ "voice_notes_dir", "archive_dir", "org_transcript_file" ]
-    for p in path_args:
-        if p not in kwargs:
-            print( "Missing required argument \"{}\".".format( p ) )
-            exit( -1 )
-        else:
-            kwargs[ p ] = os.path.abspath( os.path.expanduser( os.path.expandvars( kwargs[ p ] ) ) )
-
+    if "voicenote_filename_regex_path" in kwargs:
+        with open( kwargs[ "voicenote_filename_regex_path" ], "r" ) as fin:
+            content = [ line for line in fin.readlines() if not line.startswith( "#" ) ]
+            content = "".join( content )
+            try:
+                regex = re.compile( content )
+                del kwargs[ "voicenote_filename_regex_path" ] # Not valid to org_transcribe
+            except re.error as e:
+                print( "Invalid regex!" )
+                print( str( e ) )
+                exit( -1 )
 
     #
     # Explain ourselves

@@ -11,7 +11,7 @@ Each note becomes a heading in the org file, and includes:
 
 This uses Google's Cloud Speech-to-Text API, and *you will need your own GCP account*. Make sure you have a service account JSON.
 
-Other than that, you'll need =python3= and =ffmpeg= on your system.
+Other than that, you'll need =python3= and =ffmpeg= on your system. Only tested on Arch Linux.
 
 * Installation
 
@@ -25,6 +25,14 @@ sudo pip install voicenotes2org
 
 Transcription jobs can be defined on the command line, or in a config file.
 
+CLI Example:
+
+#+BEGIN_SRC bash
+> voicenotes2org --voice_notes_dir=~/new-voice-notes/ --archive_dir=~/org/archived-voice-notes/ --org_transcript_file=~/org/unfiled-voice-notes.org
+#+END_SRC
+
+...or...
+
 Config File:
 
 #+BEGIN_SRC bash
@@ -32,30 +40,22 @@ Config File:
 voice_notes_dir="~/new-voice-notes/"
 archive_dir="~/org/archived-voice-notes/"
 org_transcript_file="~/org/unfiled-voice-notes.org"
-verbose=true
 
 > voicenotes2org
 #+END_SRC
 
-...or...
+Note that, in the config file, all relative paths will be interpreted as relative to the config file. For example, "filename_regex.txt" in =~/.config/voicenotes2org/default.toml= will be treated as =~/.config/voicenotes2org/filename_regex.txt=.
 
-CLI Example:
-
-#+BEGIN_SRC bash
-> voicenotes2org --voice_notes_dir=~/new-voice-notes/ --archive_dir=~/org/archived-voice-notes/ --org_transcript_file=~/org/unfiled-voice-notes.org --verbose=true
-#+END_SRC
-
-In both cases:
-
-The script will find every WAV file in =~/new-voice-notes/=, and transcribe them. After transcription, they will be moved to =~/org/archived-voice-notes/=. If =~/org/unfiled-voice-notes.org= already exists, the script will append a new heading for each WAV file it transcribed. It will not delete, or modify, anything else in the org-file. If the file doesn't exist, it will be created.
+In both case, the script will find every WAV file in =~/new-voice-notes/=, and transcribe them. After transcription, they will be moved to =~/org/archived-voice-notes/=. If =~/org/unfiled-voice-notes.org= does not exist, it will be created with an eval header statement which defines the =voicenote= link type. If the file already exists, voicenotes2org will only append content, leaving existing content unmodified. There will be one new heading for each WAV file transcribed.
 
 *Optional Arguments*
-| Option                      | Meaning                                                                                                                                                                         |
-|-----------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| =--just_copy=               | Boolean. Default false. If true, don't remove audio from original folder.                                                                                                       |
-| =--gcp_credential_path=     | Path to JSON file. If provided, use this to access the Google Speech-to-Text API. If missing, you must have configured the GOOGLE_APPLICATION_CREDENTIALS environment variable! |
-| =--verbose=                 | Default false. Print the name of WAV files currently being transcribed.                                                                                                         |
-| =--max_concurrent_requests= | Maximum number of concurrent transcription requests.                                                                                                                            |
+| Option                            | Meaning                                                                                                                                                                                                                                                                                                          |
+|-----------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| =--gcp_credential_path=           | Path to JSON file. If provided, use this to access the Google Speech-to-Text API. If missing, you must have configured the GOOGLE_APPLICATION_CREDENTIALS environment variable!                                                                                                                                  |
+| =--voicenote_filename_regex_path= | Path to a text file containing a Python regex which will be used to match and parse voice note filenames. It MUST contain named groups for year, month, day, hour, minute, and ampm. All but ampm are local date/time (or, whatever you want, really), 12 hour clock. ampm should be either literally am or pm. *This is an unsanitized input.* Be smart. |
+| =--max_concurrent_requests=       | Maximum number of concurrent transcription requests.                                                                                                                                                                                                                                                             |
+| =--verbose=                       | Default false. Print the name of WAV files currently being transcribed.                                                                                                                                                                                                                                          |
+| =--just_copy=                     | Boolean. Default false. If true, don't remove audio from original folder.                                                                                                                                                                                                                                        |
 
 * Example Output
 
@@ -66,19 +66,6 @@ Formatted Output:
 Plain Text:
 
 #+BEGIN_SRC text
-  ls ~/new-voice-notes/
-  My recording 2019-12-23 6-09 AM 541.wav
-  My recording 2019-12-22 5-30 PM 539.wav
-  ls ~/org/archived-voice-notes/
-  
-  python voicenotes2org.py ~/new-voice-notes/ ~/org/archived-voice-notes/ ~/org/unfiled-voice-notes.org
-  
-  ls ~/new-voice-notes/
-  ls ~/org/archived-voice-notes/
-  My recording 2019-12-23 6-09 AM 541.wav
-  My recording 2019-12-22 5-30 PM 539.wav
-
-  cat ~/org/unfiled-voice-notes.org
   # -*- eval: (org-link-set-parameters "voicenote" :follow (lambda (content) (cl-multiple-value-bind (file seconds) (split-string content ":") (emms-play-file file) (sit-for 0.5) (emms-seek-to seconds)))) -*-
   #+TITLE: Unfiled Voice Notes
   
@@ -96,6 +83,21 @@ Plain Text:
   [2019-12-24 Tue 17:30]
   ...you get the idea...
 #+END_SRC
+
+* WAV file naming rules
+
+Unless you define your own regex file, WAV files must be named according to the following pattern:
+
+    .* YYYY-MM-DD H-MM AM|PM .*.wav
+
+Where:
+- =YYYY= is the year.
+- =MM= is zero-padded month.
+- =DD= is zero-padded day.
+- =H= is unpadded (sorry) hour in 12-hour format.
+- =MM= is zero-padded minute.
+- =AM|PM= is literally just "AM" or "PM".
+- Everything is whitespace delimited.
 
 * Example Workflow
 
@@ -129,30 +131,13 @@ If I run the example command under the =Basic Usage= heading, then absent any er
 
 Once =voicenotes2org= has returned, you should open =~/org/unfiled-voice-notes.org= in Emacs, then use =org-refile= to pop each entry into a more proper location in your org directory structure. Make sure you've configured =org-refile-targets= first!
 
-* 🚨 Gotchas 🚨
+* 🚨 Limitations 🚨
 
 Many corners have been cut in the making of this script. If literally anyone else ever uses this code, these issues might be worth fixing some day.
 
 ** Only WAV files are supported
 
 Wouldn't be hard to figure out the file format, but Google's transcription API requires non-WAV formats specify things like sample rate and encoding. I did not need this.
-
-** WAV file naming rules
-
-WAV files *must* be named according to the following pattern:
-
-    STUFFA YYYY-MM-DD H-MM AM|PM STUFFB.wav
-
-Where:
-- =YYYY= is the year.
-- =MM= is zero-padded month.
-- =DD= is zero-padded day.
-- =H= is unpadded (sorry) hour in 12-hour format.
-- =MM= is zero-padded minute.
-- =AM|PM= is literally just "AM" or "PM".
-- =STUFF_= is contiguous non-whitespace. The A and B parts will be catenated & used in the entry heading.
-
-This is ugly and arbitrary and later versions might improve this.
 
 ** Ugliness caused by avoiding Google Cloud Storage
 
