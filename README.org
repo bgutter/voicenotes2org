@@ -99,6 +99,32 @@ Where:
 - =AM|PM= is literally just "AM" or "PM".
 - Everything is whitespace delimited.
 
+* 🚨 Limitations 🚨
+
+Many corners have been cut in the making of this script. If literally anyone else ever uses this code, these issues might be worth fixing some day.
+
+** Only WAV files are supported
+
+Wouldn't be hard to figure out the file format, but Google's transcription API requires non-WAV formats specify things like sample rate and encoding. I did not need this.
+
+** Ugliness caused by avoiding Google Cloud Storage
+
+Google caps the duration of audio which has been inlined into the transcription request at 1 minute. Anything longer than that, and you need to configure a Google Cloud Storage bucket. I didn't want to, so I split each voice note into 55-second chunks with a 5-second overlap.
+
+For example, a 3 minute long voice note is actually transcribed in 4 separate chunks:
+1. 0:00 to 0:55 -- 55 seconds
+2. 0:50 to 1:45 -- 55 seconds, first 5 overlap
+3. 1:40 to 2:35 -- 55 seconds, first 5 overlap
+4. 2:30 to 3:00 -- 30 seconds, first 5 overlap
+
+To reduce (or, maybe produce) confusion, I insert the sequence "//" into the transcription wherever we're about to start inserting overlapped content. For example:
+
+#+BEGIN_SRC
+and we went to the store for some // the store for some candy to bring with us
+#+END_SRC
+
+This is ugly and lazy and later versions might improve this.
+
 * Example Workflow
 
 This is how I integrate my voice recordings into org-mode.
@@ -130,25 +156,3 @@ If I run the example command under the =Basic Usage= heading, then absent any er
 *Filing*
 
 Once =voicenotes2org= has returned, you should open =~/org/unfiled-voice-notes.org= in Emacs, then use =org-refile= to pop each entry into a more proper location in your org directory structure. Make sure you've configured =org-refile-targets= first!
-
-* 🚨 Limitations 🚨
-
-Many corners have been cut in the making of this script. If literally anyone else ever uses this code, these issues might be worth fixing some day.
-
-** Only WAV files are supported
-
-Wouldn't be hard to figure out the file format, but Google's transcription API requires non-WAV formats specify things like sample rate and encoding. I did not need this.
-
-** Ugliness caused by avoiding Google Cloud Storage
-
-Google caps the duration of audio which has been inlined into the transcription request at 1 minute. Anything longer than that, and you need to configure a Google Cloud Storage bucket. I didn't want to, so I split each voice note into 55-second chunks with a 5-second overlap.
-
-For example, a 3 minute long voice note is actually transcribed in 4 separate chunks:
-1. 0:00 to 0:55 -- 55 seconds
-2. 0:50 to 1:45 -- 55 seconds, first 5 overlap
-3. 1:40 to 2:35 -- 55 seconds, first 5 overlap
-4. 2:30 to 3:00 -- 30 seconds, first 5 overlap
-
-To reduce (or, maybe produce) confusion, I insert the text "<...snip...>" into the transcription wherever we're about to start inserting overlapped content.
-
-This is ugly and lazy and later versions might improve this.
