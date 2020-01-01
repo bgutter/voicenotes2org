@@ -1,5 +1,7 @@
 #+TITLE: voicenotes2org
 
+[[./formatted-output.png]]
+
 =voicenotes2org= is a Python script which collects WAV files in a given directory, sends them to Google Cloud Platform (GCP) for transcription, and then formats the resulting transcripts into a combined org file, including links back to the original audio.
 
 Each note becomes a heading in the org file, and includes:
@@ -66,22 +68,37 @@ Formatted Output:
 Plain Text:
 
 #+BEGIN_SRC text
-  # -*- eval: (org-link-set-parameters "voicenote" :follow (lambda (content) (cl-multiple-value-bind (file seconds) (split-string content ":") (emms-play-file file) (sit-for 0.5) (emms-seek-to seconds)))) -*-
-  #+TITLE: Unfiled Voice Notes
-  
-  C-c C-o on any link to play clip starting from that offset.
-  
-  * Voice Note: My recording, 541
-  [2019-12-23 Mon 06:09]
-  [[voicenote:/home/me/org/archived-voice-notes/My recording 2019-12-23 6-09 AM 541.wav:0][Archived Clip]]
-  
-  [[voicenote:/home/me/org/archived-voice-notes/My recording 2019-12-23 6-09 AM 541.wav:0][00:00]] just some example text not really talking I have nothing to say etcetera
-  [[voicenote:/home/me/org/archived-voice-notes/My recording 2019-12-23 6-09 AM 541.wav:10][00:10]] and more stuff and blah blah blah nothing to add really just want to fill
-  [[voicenote:/home/me/org/archived-voice-notes/My recording 2019-12-23 6-09 AM 541.wav:20][00:20]] out a little bit more
-  
-  * Voice Note: My recording, 542
-  [2019-12-24 Tue 17:30]
-  ...you get the idea...
+# -*- eval: (org-link-set-parameters "voicenote" :follow (lambda (content) (cl-multiple-value-bind (file seconds) (split-string content ":") (emms-play-file file) (sit-for 0.5) (emms-seek-to seconds)))) -*-
+#+TITLE: Unfiled Voice Notes
+
+C-c C-o on any link to play clip starting from that offset.
+
+* New Voice Note
+[2020-01-01 Wed 00:52]
+[[voicenote:~/org/archived-voice-notes/My recording 2020-01-01 12-52 AM 143.wav:0][Archived Clip]]
+
+[[voicenote:~/org/archived-voice-notes/My recording 2020-01-01 12-52 AM 143.wav:0][00:00]] this is a second voice note I am talking into a phone right now roses are red violets are blue
+[[voicenote:~/org/archived-voice-notes/My recording 2020-01-01 12-52 AM 143.wav:10][00:10]] blah blah blah
+
+
+* New Voice Note
+[2020-01-01 Wed 00:52]
+[[voicenote:~/org/archived-voice-notes/My recording 2020-01-01 12-52 AM 142.wav:0][Archived Clip]]
+
+[[voicenote:~/org/archived-voice-notes/My recording 2020-01-01 12-52 AM 142.wav:0][00:00]] this is a voice note for testing this is the first one that I will do I'm going to talk about nothing
+[[voicenote:~/org/archived-voice-notes/My recording 2020-01-01 12-52 AM 142.wav:10][00:10]] because I don't know what else to say
+
+
+* New Voice Note
+[2020-01-01 Wed 00:53]
+[[voicenote:~/org/archived-voice-notes/My recording 2020-01-01 12-53 AM 144.wav:0][Archived Clip]]
+
+[[voicenote:~/org/archived-voice-notes/My recording 2020-01-01 12-53 AM 144.wav:0][00:00]] Mona Lisa lost her smile the painters hands are trembling now and if she's out
+[[voicenote:~/org/archived-voice-notes/My recording 2020-01-01 12-53 AM 144.wav:10][00:10]] there running wild it's just because I taught her how the Masterpiece that we had planned is laying shattered
+[[voicenote:~/org/archived-voice-notes/My recording 2020-01-01 12-53 AM 144.wav:20][00:20]] on the ground Mona Lisa lost her smile and the painters hands are trembling now and the eyes that used to burn for
+[[voicenote:~/org/archived-voice-notes/My recording 2020-01-01 12-53 AM 144.wav:30][00:30]] me now they no longer look my way and the love that used to be why it just got lost in yesterday
+[[voicenote:~/org/archived-voice-notes/My recording 2020-01-01 12-53 AM 144.wav:40][00:40]] and if she seems cold to the touch well there used to be burn a flame I gave to a little took
+[[voicenote:~/org/archived-voice-notes/My recording 2020-01-01 12-53 AM 144.wav:50][00:50]] too much til I erased the painter's name // too much till I erased the painter's name
 #+END_SRC
 
 * WAV file naming rules
