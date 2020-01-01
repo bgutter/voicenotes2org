@@ -23,9 +23,29 @@ sudo pip install voicenotes2org
 
 * Basic Usage
 
+Transcription jobs can be defined on the command line, or in a config file.
+
+Config File:
+
 #+BEGIN_SRC bash
-voicenotes2org ~/new-voice-notes/ ~/org/archived-voice-notes/ ~/org/unfiled-voice-notes.org
+> cat ~/.config/voicenotes2org/default.toml
+voice_notes_dir="~/new-voice-notes/"
+archive_dir="~/org/archived-voice-notes/"
+org_transcript_file="~/org/unfiled-voice-notes.org"
+verbose=true
+
+> voicenotes2org
 #+END_SRC
+
+...or...
+
+CLI Example:
+
+#+BEGIN_SRC bash
+> voicenotes2org --voice_notes_dir=~/new-voice-notes/ --archive_dir=~/org/archived-voice-notes/ --org_transcript_file=~/org/unfiled-voice-notes.org --verbose=true
+#+END_SRC
+
+In both cases:
 
 The script will find every WAV file in =~/new-voice-notes/=, and transcribe them. After transcription, they will be moved to =~/org/archived-voice-notes/=. If =~/org/unfiled-voice-notes.org= already exists, the script will append a new heading for each WAV file it transcribed. It will not delete, or modify, anything else in the org-file. If the file doesn't exist, it will be created.
 
