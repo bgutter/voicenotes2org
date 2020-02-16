@@ -17,7 +17,15 @@ Other than that, you'll need =python3= and =ffmpeg= on your system. Only tested 
 
 * Installation
 
-It's on PyPI.
+Clone this repo, then install like so:
+
+#+begin_src sh
+  git clone https://github.com/bgutter/voicenotes2org
+  cd voicenotes2org
+  pip install . # optionally with sudo, depending on your system
+#+end_src
+
+It's also on PyPI as =voicenotes2org=, but not usually up to date there.
 
 #+BEGIN_SRC sh
 sudo pip install voicenotes2org
