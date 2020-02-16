@@ -26,7 +26,7 @@ from datetime import datetime
 #
 
 TRANSCRIPTION_CHUNK_SIZE = 10 # seconds
-SPLICE_STR = "//"
+SPLICE_STR = "..."
 ORG_FILE_HEADER = """# -*- eval: (org-link-set-parameters "voicenote" :follow (lambda (content) (cl-multiple-value-bind (file seconds) (split-string content ":") (emms-play-file file) (sit-for 0.5) (emms-seek-to seconds)))) -*-
 
 C-c C-o on any link to play clip starting from that offset.

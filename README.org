@@ -106,7 +106,7 @@ C-c C-o on any link to play clip starting from that offset.
 [[voicenote:~/org/archived-voice-notes/My recording 2020-01-01 12-53 AM 144.wav:20][00:20]] on the ground Mona Lisa lost her smile and the painters hands are trembling now and the eyes that used to burn for
 [[voicenote:~/org/archived-voice-notes/My recording 2020-01-01 12-53 AM 144.wav:30][00:30]] me now they no longer look my way and the love that used to be why it just got lost in yesterday
 [[voicenote:~/org/archived-voice-notes/My recording 2020-01-01 12-53 AM 144.wav:40][00:40]] and if she seems cold to the touch well there used to be burn a flame I gave to a little took
-[[voicenote:~/org/archived-voice-notes/My recording 2020-01-01 12-53 AM 144.wav:50][00:50]] too much til I erased the painter's name // too much till I erased the painter's name
+[[voicenote:~/org/archived-voice-notes/My recording 2020-01-01 12-53 AM 144.wav:50][00:50]] too much til I erased the painter's name ... too much till I erased the painter's name
 #+END_SRC
 
 * WAV file naming rules
@@ -142,10 +142,10 @@ For example, a 3 minute long voice note is actually transcribed in 4 separate ch
 3. 1:40 to 2:35 -- 55 seconds, first 5 overlap
 4. 2:30 to 3:00 -- 30 seconds, first 5 overlap
 
-To reduce (or, maybe produce) confusion, I insert the sequence "//" into the transcription wherever we're about to start inserting overlapped content. For example:
+To reduce (or, maybe produce) confusion, I insert an ellipsis (...) into the transcription wherever we're about to start inserting overlapped content. For example:
 
 #+BEGIN_SRC
-and we went to the store for some // the store for some candy to bring with us
+and we went to the store for some ... the store for some candy to bring with us
 #+END_SRC
 
 This is ugly and lazy and later versions might improve this.
