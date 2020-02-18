@@ -67,6 +67,18 @@ In both case, the script will find every WAV file in =~/new-voice-notes/=, and t
 | =--verbose=                       | Default false. Print the name of WAV files currently being transcribed.                                                                                                                                                                                                                                          |
 | =--just_copy=                     | Boolean. Default false. If true, don't remove audio from original folder.                                                                                                                                                                                                                                        |
 
+If you prefer to avoid eval statements in your file headers, you may instead include this somewhere in your init code:
+
+#+BEGIN_SRC emacs-lisp
+  (org-link-set-parameters "voicenote"
+                           :follow (lambda (content)
+                                     (cl-multiple-value-bind (file seconds)
+                                         (split-string content ":")
+                                       (emms-play-file file)
+                                       (sit-for 0.5)
+                                       (emms-seek-to (string-to-number seconds)))))
+#+END_SRC
+
 * Example Output
 
 Formatted Output:
